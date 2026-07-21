@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - "data/games.csv"
+      - "data/sources/**.csv"
       - "scripts/build_dashboard.py"
       - ".github/workflows/update-dashboard.yml"
   schedule:
@@ -36,4 +37,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Update dashboard from games.csv"
-          file_pattern: index.html
+          file_pattern: index.html data/games.csv
