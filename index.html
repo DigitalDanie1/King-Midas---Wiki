@@ -493,15 +493,16 @@ function hasImg(s){return typeof s==="string"&&/^(https?:\/\/|data:)/.test(s);}
 function rtpNum(g){const m=String(g.rtp||"").match(/([\d.]+)/);return m?parseFloat(m[1]):-1;}
 
 // ---- state ----
-let state={q:"",status:null,genre:null,studio:null,vol:null,collection:null,exclusivity:null,sort:"name"};
+let state={q:"",status:null,genre:null,studio:null,vol:null,collection:null,exclusivity:null,mechanic:null,market:null,service:null,sort:"name"};
 
-const LANG_NAMES={EN:"English",CN:"简体",TH:"ไทย",VN:"Tiếng Việt",ID:"Bahasa",KR:"한국어",MY:"Melayu",PTBR:"PT-BR",ESLA:"ES-LA",RU:"Русский",TR:"Türkçe",BN:"বাংলা",HI:"हिन्दी"};
+const LANG_NAMES={EN:"English",CN:"简体",HANT:"繁體",TH:"ไทย",VN:"Tiếng Việt",ID:"Bahasa",KR:"한국어",MY:"Melayu",PTBR:"PT-BR",ESLA:"ES-LA",RU:"Русский",TR:"Türkçe",BN:"বাংলা",HI:"हिन्दी"};
 
 // ---- build search text ----
 function buildSearchIndex(){
   GAMES.forEach(g=>{
     g._search=[g.name,g.identifier,g.status,g.genre,g.studio,g.themes,g.tags,g.market,
     g.countryDAU,g.originated,g.description,g.exclusivity,g.variant,g.variantDesc,g.volatility,g.bonus,g.mechanic,g.service,
+      g.additionalMarket,g.countryFilter,g.gameSetting,g.localisation,
       Object.values(g.integrations||{}).join(" "),Object.values(g.sizes||{}).join(" "),Object.values(g.assets||{}).join(" "),
       Object.keys(g.features||{}).join(" "),
       Object.values(g.names||{}).join(" ")].filter(Boolean).join(" ").toLowerCase();
@@ -523,6 +524,9 @@ function applyFilters(ignoreSelf,selfKey){
     if(state.vol && !(selfKey==="volatility"&&ignoreSelf) && (g.volatility||"").toUpperCase()!==state.vol) return false;
     if(state.collection && !(selfKey==="collection"&&ignoreSelf) && g.collection!==state.collection) return false;
     if(state.exclusivity && !(selfKey==="exclusivity"&&ignoreSelf) && g.exclusivity!==state.exclusivity) return false;
+    if(state.mechanic && !(selfKey==="mechanic"&&ignoreSelf) && g.mechanic!==state.mechanic) return false;
+    if(state.market && !(selfKey==="market"&&ignoreSelf) && g.market!==state.market) return false;
+    if(state.service && !(selfKey==="service"&&ignoreSelf) && g.service!==state.service) return false;
     return true;
   });
 }
@@ -544,7 +548,8 @@ function renderStatusDefinitions(){
 function renderRail(){
   const rail=document.getElementById("rail");
   const sc=facetCounts("status"), gc=facetCounts("genre"),
-        stc=facetCounts("studio"), cc=facetCounts("collection"), ec=facetCounts("exclusivity");
+        stc=facetCounts("studio"), cc=facetCounts("collection"), ec=facetCounts("exclusivity"),
+        mc=facetCounts("mechanic"), mkc=facetCounts("market"), svc=facetCounts("service");
   const volC={};applyFilters(true,"volatility").forEach(g=>{const v=(g.volatility||"").toUpperCase();if(v)volC[v]=(volC[v]||0)+1;});
   let h="";
   h+=`<h3>Status</h3><div class="facet">`;
@@ -564,6 +569,15 @@ function renderRail(){
   h+=`<h3>Genre</h3><div class="facet">`;
   ["SLOTS","CLASSIC","NEXT-GEN"].filter(x=>gc[x]).forEach(x=>h+=fbtn("genre",x,gc[x],esc(x)));
   h+=`</div>`;
+  h+=`<h3>Mechanic</h3><div class="facet">`;
+  Object.keys(mc).sort((a,b)=>mc[b]-mc[a]).forEach(x=>h+=fbtn("mechanic",x,mc[x],esc(x)));
+  h+=`</div>`;
+  h+=`<h3>Market</h3><div class="facet">`;
+  Object.keys(mkc).sort((a,b)=>mkc[b]-mkc[a]).slice(0,12).forEach(x=>h+=fbtn("market",x,mkc[x],esc(x)));
+  h+=`</div>`;
+  h+=`<h3>Game Service</h3><div class="facet">`;
+  Object.keys(svc).sort((a,b)=>svc[b]-svc[a]).forEach(x=>h+=fbtn("service",x,svc[x],esc(x)));
+  h+=`</div>`;
   h+=`<h3>Volatility</h3><div class="facet">`;
   ["LOW","MEDIUM","HIGH"].filter(x=>volC[x]).forEach(x=>h+=fbtn("vol",x,volC[x],esc(x)));
   h+=`</div>`;
@@ -581,7 +595,7 @@ function toggleFacet(key,val){
   state[sk]=state[sk]===val?null:val;
   render();
 }
-function resetAll(){state={q:state.q,status:null,genre:null,studio:null,vol:null,collection:null,exclusivity:null,sort:state.sort};
+function resetAll(){state={q:state.q,status:null,genre:null,studio:null,vol:null,collection:null,exclusivity:null,mechanic:null,market:null,service:null,sort:state.sort};
   render();}
 
 function renderStats(){
@@ -657,6 +671,8 @@ function openArticle(idx){
     ["Hit Rate",g.hitRate],["Bonus",g.bonus],["Mechanic",g.mechanic],["Reels",g.reels&&g.reels!=="N.A"?g.reels:null],
     ["Pay Ways",g.payways],["Commission",g.commission&&g.commission!=="N.A"?g.commission:null],
     ["Currency",g.currency],["Game Service",g.service],["Origin",g.originated],["Top DAU",g.countryDAU],
+    ["Market Filter",g.market],["Additional Market",g.additionalMarket],["Country Filter",g.countryFilter],
+    ["Game Setting",g.gameSetting],["Localisation",g.localisation],
     ["Transfer Size",g.sizes&&g.sizes["Transfer MB"]?`${g.sizes["Transfer MB"]} MB`:null],
     ["Resource Size",g.sizes&&g.sizes["Resource MB"]?`${g.sizes["Resource MB"]} MB`:null],
     ["Studio",STUDIO_NAMES[g.studio]||g.studio],["Exclusivity",g.exclusivity],
@@ -714,6 +730,9 @@ function openArticle(idx){
   if(isUrl(g.icon))links.push(`<a class="lbtn ghost" href="${esc(g.icon)}" target="_blank">🖼 Key Art</a>`);
   Object.entries(g.assets||{}).forEach(([label,url])=>{if(isUrl(url))links.push(`<a class="lbtn ghost" href="${esc(url)}" target="_blank">${esc(label)}</a>`);});
   const linkSection=links.length?`<div class="sec"><h4>🔗 Resources & Assets</h4><div class="linkbtns">${links.join("")}</div></div>`:"";
+  const assetNotes=Object.entries(g.assets||{}).filter(([,v])=>v&&!isUrl(v));
+  const assetNotesSection=assetNotes.length?`<div class="sec"><h4>📁 Asset References</h4>
+    <div class="namesgrid">${assetNotes.map(([k,v])=>`<div class="namecell"><div class="nl">${esc(k)}</div><div class="nv">${esc(v)}</div></div>`).join("")}</div></div>`:"";
 
   const integrations=Object.entries(g.integrations||{}).filter(([,v])=>v);
   const integrationsSection=integrations.length?`<div class="sec"><h4>🔌 Integration Status</h4>
@@ -751,6 +770,7 @@ function openArticle(idx){
         ${langSection}
         ${themesChips.length?`<div class="sec"><h4>🏷️ Themes & Tags</h4><div class="flags">${themesChips.map(t=>`<span class="flag" style="background:rgba(245,196,81,.1);border-color:rgba(245,196,81,.3);color:var(--gold)">${esc(t)}</span>`).join("")}</div></div>`:""}
         ${namesSection}
+        ${assetNotesSection}
         ${linkSection}
       </div>
       <aside class="infobox">
