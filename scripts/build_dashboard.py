@@ -18,7 +18,9 @@ CSV_PATH = DATA_DIR / "games.csv"
 HTML_PATH = ROOT / "index.html"
 
 SOURCE_FILES = [
-    SOURCE_DIR / "July21st.csv",
+    SOURCE_DIR / "KingMidas Games Wiki - KM Games DB.csv",
+    SOURCE_DIR / "KingMidas Games Wiki - NEXT-GEN.csv",
+    SOURCE_DIR / "KingMidas Games Wiki - SLOT FEATURES.csv",
     SOURCE_DIR / "KingMidas Games Wiki - Retired_Hidden Games.csv",
     SOURCE_DIR / "KingMidas Games Wiki - UFA Exclusive Games.csv",
 ]
@@ -87,6 +89,11 @@ FIELDNAMES = [
     "market",
     "additionalMarket",
     "countryFilter",
+    "display",
+    "gameType",
+    "winTiers",
+    "gamification",
+    "designTheme",
     "description",
     "gameFeatures",
     "reels",
@@ -188,6 +195,47 @@ def slug(value, fallback):
     return re.sub(r"[^a-z0-9]+", "-", base.lower()).strip("-")
 
 
+def normalize_status(value):
+    value = clean(value)
+    if not value:
+        return "Not Started"
+    aliases = {
+        "launched": "Live",
+        "live": "Live",
+        "underdevelopment": "Under Development",
+        "productionready": "Production Ready",
+        "integrated": "Integrated",
+        "retired": "Retired",
+        "maintenance": "Maintenance",
+        "notstarted": "Not Started",
+        "onhold": "On Hold",
+    }
+    return aliases.get(norm_key(value), value)
+
+
+def normalize_genre(value):
+    value = clean(value)
+    key = norm_key(value)
+    if "slot" in key:
+        return "SLOTS"
+    if "nextgen" in key or "casual" in key or "virtual" in key:
+        return "NEXT-GEN"
+    if "classic" in key or "table" in key or "dice" in key or "roulette" in key:
+        return "CLASSIC"
+    return value.upper()
+
+
+def normalize_mechanic(*values):
+    text = " ".join(clean(v) for v in values if clean(v)).upper()
+    if "WINWAYS" in text or "WIN WAYS" in text or "WAYS" in text:
+        return "WINWAYS"
+    if "PAYLINE" in text:
+        return "PAYLINES"
+    if "CASCADE" in text or "CASCADING" in text:
+        return "CASCADE"
+    return ""
+
+
 def parse_jsonish(value, default):
     if not clean(value):
         return default
@@ -254,9 +302,10 @@ def normalize_row(row, collection):
 
     names = {}
     for lang, col in LANG_COLUMNS.items():
-        value = get(row, col)
+        value = get(row, col, lang)
         if value:
-            names[lang] = value
+            if value.upper() not in {"TRUE", "FALSE"}:
+                names[lang] = value
     if name:
         names["EN"] = name
 
@@ -268,7 +317,7 @@ def normalize_row(row, collection):
         "UKGC": get(row, "UKGC Certification"),
         "GLI19": get(row, "GLI 19 Certification", "GLI19 Certification"),
         "PAGCOR": get(row, "PAGCOR Approved", "PAGCOR Certification"),
-        "Peru": get(row, "Peru (Global Labs) Certification", "Peru Global Labs Certification"),
+        "Peru": get(row, "Peru (Global Labs) Certification", "Peru Global Labs Certification", "Global Labs Certification (Peru)"),
     }
     features = {col: True for col in FEATURE_COLUMNS if truthy(get(row, col))}
     integrations = {
@@ -288,7 +337,7 @@ def normalize_row(row, collection):
         "Brochure CN": get(row, "Brochure CN"),
         "Landing": get(row, "Game Landing"),
         "Logo": get(row, "Game Logo"),
-        "Banners / Assets": get(row, "Game Banners / Assets"),
+        "Banners / Assets": get(row, "Game Banners / Assets", "Game Banners", "Game Assets"),
         "PSD File": get(row, "PSD File"),
         "Promo Video": get(row, "Promo Video"),
         "GDD": get(row, "Game Design Document"),
@@ -303,7 +352,7 @@ def normalize_row(row, collection):
         "studio": get(row, "Studio", "Provider") or "KM",
         "gid": get(row, "GID"),
         "exclusivity": get(row, "Exclusivity"),
-        "status": get(row, "Status", "Stage", "State") or "Not Started",
+        "status": normalize_status(get(row, "Status", "Stage", "State")),
         "firstLive": get(row, "First Live Date", "Initial Release Date", "First Live", "Release Date"),
         "icon": get(row, "Game Icon", "Game Icon URL", "Icon", "Image URL"),
         "logo": get(row, "Logo"),
@@ -313,8 +362,8 @@ def normalize_row(row, collection):
         "volatility": get(row, "Volatility").upper(),
         "commission": get(row, "Commission"),
         "hitRate": get(row, "Hit Rate"),
-        "genre": get(row, "GENRE / GAME TYPE", "Genre").upper(),
-        "mechanic": get(row, "") if get(row, "").upper() in {"CASCADE", "PAYLINES", "WINWAYS", "WAYS"} else "",
+        "genre": normalize_genre(get(row, "GENRE / GAME TYPE", "Genre", "Game Type")),
+        "mechanic": normalize_mechanic(get(row, "", "Line/Ways")),
         "bonus": get(row, "Bonus"),
         "tags": [tag.strip() for tag in re.split(r"[,/|]", get(row, "Tags")) if tag.strip()],
         "originated": get(row, "Game Originated", "Originated"),
@@ -323,6 +372,11 @@ def normalize_row(row, collection):
         "market": get(row, "Market Filter"),
         "additionalMarket": get(row, "Additional Market Filter"),
         "countryFilter": get(row, "Country Filter"),
+        "display": get(row, "Display"),
+        "gameType": get(row, "Game Type"),
+        "winTiers": get(row, "Win Tiers"),
+        "gamification": get(row, "Gamification", "Gamification Compatibility"),
+        "designTheme": get(row, "Design Theme & Features"),
         "description": get(row, "Game Description", "Description"),
         "gameFeatures": get(row, "Game Features"),
         "reels": get(row, "Reels"),
@@ -453,7 +507,8 @@ def main():
     print(f"Updated {HTML_PATH}")
     print(f"Games: {len(games)}")
     print(f"Missing icons: {len(missing)}")
-    print(f"Sources: {sum(1 for p in SOURCE_FILES + [STATUS_FILE] if p.exists())}/4")
+    source_total = len(SOURCE_FILES) + 1
+    print(f"Sources: {sum(1 for p in SOURCE_FILES + [STATUS_FILE] if p.exists())}/{source_total}")
     if missing:
         for item in missing:
             print(f"- {item}")
