@@ -1,9 +1,0 @@
-"Status Definitions: 
-Live = The game has launched and is playable on the operator’s site
-Under Development = The game is currently in development (art, GDD, QA)
-Production Ready = The product is completed with QA tested, pending integration with the aggregator
-Integrated = The product has been integrated with the aggregator but has not yet gone live
-Retired = The product has been permanently taken down
-Maintenance = The product is temporarily taken offline for fixes or updates
-Not Started = The product is in a very early concept stage, with only initial ideas defined
-On Hold = The product is put on-hold till further notice."
